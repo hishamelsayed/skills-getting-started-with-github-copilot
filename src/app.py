@@ -34,7 +34,7 @@ activities = {
         "participants": ["emma@mergington.edu", "sophia@mergington.edu"]
     },
     "Gym Class": {
-        "description": "Physical education and sports activities",
+        "description": "Physical education and sports p",
         "schedule": "Mondays, Wednesdays, Fridays, 2:00 PM - 3:00 PM",
         "max_participants": 30,
         "participants": ["john@mergington.edu", "olivia@mergington.edu"]
@@ -97,8 +97,35 @@ def signup_for_activity(activity_name: str, email: str):
 
     # Get the specific activity
     activity = activities[activity_name]
-# Validate student is not already signed up    if email in activity["participants"]:
+
+    # Normalize and validate email
+    normalized = email.strip().lower()
+    if normalized in [e.strip().lower() for e in activity.get("participants", [])]:
+        raise HTTPException(status_code=400, detail="Student already signed up")
+
+    # Check capacity
+    if len(activity.get("participants", [])) >= activity.get("max_participants", 0):
+        raise HTTPException(status_code=400, detail="Activity is full")
 
     # Add student
-    activity["participants"].append(email)
-    return {"message": f"Signed up {email} for {activity_name}"}
+    activity.setdefault("participants", []).append(normalized)
+    return {"message": f"Signed up {normalized} for {activity_name}"}
+
+
+@app.delete("/activities/{activity_name}/participants")
+def remove_participant(activity_name: str, email: str):
+    """Unregister a student from an activity"""
+    if activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    activity = activities[activity_name]
+    normalized = email.strip().lower()
+    participants = activity.get("participants", [])
+    normalized_list = [e.strip().lower() for e in participants]
+    if normalized not in normalized_list:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    # remove the original entry preserving casing if any
+    idx = normalized_list.index(normalized)
+    participants.pop(idx)
+    return {"message": f"Removed {normalized} from {activity_name}"}
